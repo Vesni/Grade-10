@@ -146,3 +146,20 @@ async function loadBlogPosts() {
   });
 }
 if (document.getElementById("blogPosts")) loadBlogPosts();
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-storage.js";
+const storage = getStorage(app);
+
+const uploadBtn = document.getElementById("uploadBtn");
+if (uploadBtn) {
+  uploadBtn.addEventListener("click", async () => {
+    const file = document.getElementById("galleryUpload").files[0];
+    const storageRef = ref(storage, `gallery/${file.name}`);
+    await uploadBytes(storageRef, file);
+    const url = await getDownloadURL(storageRef);
+    await addDoc(collection(db, "galleryImages"), {
+      imageUrl: url,
+      timestamp: Date.now()
+    });
+    alert("Uploaded!");
+  });
+}
