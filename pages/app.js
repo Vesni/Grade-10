@@ -25,18 +25,29 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 const storage = getStorage(app);
 
+// === ✅ Discord Login Button ===
+const loginBtn = document.getElementById("discordLogin");
+if (loginBtn) {
+  loginBtn.addEventListener("click", () => {
+    const clientId = "1391410094117359720"; // Your Discord Client ID
+    const redirectUri = encodeURIComponent(window.location.origin);
+    const scope = "identify";
+    window.location.href = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`;
+  });
+}
+
 // === ✅ Auth State ===
 onAuthStateChanged(auth, user => {
   if (user) {
     console.log("✅ Signed in:", user.displayName || user.uid);
+    // You can update UI here if you want!
   } else {
     console.log("❌ Not signed in");
-    // Try Discord login if code exists
+    // Try Discord code
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
     if (code) {
-      // Call your Vercel function
-      fetch(`/api/discord-login?code=${code}`)
+      fetch(`/.netlify/functions/discord-login?code=${code}`)
         .then(res => res.json())
         .then(async data => {
           if (data.customToken) {
@@ -44,9 +55,10 @@ onAuthStateChanged(auth, user => {
             console.log("✅ Discord linked!");
             window.history.replaceState({}, document.title, "/");
           } else {
-            console.error(data);
+            console.error("❌ No custom token:", data);
           }
-        });
+        })
+        .catch(err => console.error("❌ Fetch error:", err));
     }
   }
 });
@@ -56,11 +68,11 @@ const reportForm = document.getElementById("reportForm");
 if (reportForm) {
   reportForm.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const text = document.getElementById("reportText").value;
+    const text = document.getElementById("reportText").value.trim();
     const user = auth.currentUser;
 
     if (!user) {
-      alert("Please sign in with Discord first.");
+      alert("Please login with Discord first.");
       return;
     }
 
@@ -77,11 +89,10 @@ if (reportForm) {
   });
 }
 
-// === ✅ Load Solved & Unsolved Reports ===
+// === ✅ Load Solved/Unsolved Reports ===
 async function loadReports(status) {
-  const q = query(collection(db, "playerReports"), where("status", "==", status));
+  const q = query(collection(db, "playerReports"), where("status", "==", status), orderBy("timestamp", "desc"));
   const snapshot = await getDocs(q);
-
   let container = document.getElementById(`${status}Reports`);
   if (!container) return;
 
@@ -92,7 +103,6 @@ async function loadReports(status) {
     container.appendChild(div);
   });
 }
-
 if (document.getElementById("solvedReports")) loadReports("solved");
 if (document.getElementById("unsolvedReports")) loadReports("unsolved");
 
@@ -101,19 +111,27 @@ const blogForm = document.getElementById("blogForm");
 if (blogForm) {
   blogForm.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const content = document.getElementById("blogPost").value;
+    const content = document.getElementById("blogPost").value.trim();
     const user = auth.currentUser;
-    if (!user) { alert("Login first"); return; }
+
+    if (!user) {
+      alert("Please login with Discord first.");
+      return;
+    }
+
     await addDoc(collection(db, "playerBlogs"), {
       discordId: user.uid,
       username: user.displayName || "Anonymous",
       content: content,
       timestamp: Date.now()
     });
+
     blogForm.reset();
+    alert("✅ Blog post added!");
   });
 }
 
+// Load all blog posts
 async function loadBlogPosts() {
   const q = query(collection(db, "playerBlogs"), orderBy("timestamp", "desc"));
   const snapshot = await getDocs(q);
@@ -134,6 +152,10 @@ const uploadBtn = document.getElementById("uploadBtn");
 if (uploadBtn) {
   uploadBtn.addEventListener("click", async () => {
     const file = document.getElementById("galleryUpload").files[0];
+    if (!file) {
+      alert("Select a file first!");
+      return;
+    }
     const storageRef = ref(storage, `gallery/${file.name}`);
     await uploadBytes(storageRef, file);
     const url = await getDownloadURL(storageRef);
@@ -141,11 +163,11 @@ if (uploadBtn) {
       imageUrl: url,
       timestamp: Date.now()
     });
-    alert("✅ Uploaded!");
+    alert("✅ Image uploaded!");
   });
 }
 
-// === ✅ Load Gallery ===
+// Load gallery images
 async function loadGallery() {
   const snapshot = await getDocs(query(collection(db, "galleryImages"), orderBy("timestamp", "desc")));
   const container = document.getElementById("galleryGrid");
@@ -161,12 +183,3 @@ async function loadGallery() {
   });
 }
 if (document.getElementById("galleryGrid")) loadGallery();
-const loginBtn = document.getElementById("discordLogin");
-if (loginBtn) {
-  loginBtn.addEventListener("click", () => {
-    const clientId = "1391410094117359720";
-    const redirectUri = encodeURIComponent(window.location.origin);
-    const scope = "identify";
-    window.location.href = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`;
-  });
-}
