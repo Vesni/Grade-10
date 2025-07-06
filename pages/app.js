@@ -101,3 +101,18 @@ if (reportForm) {
     reportForm.reset();
   });
 }
+async function loadReports(status) {
+  const q = query(collection(db, "playerReports"), where("status", "==", status));
+  const querySnapshot = await getDocs(q);
+
+  let container = document.getElementById(`${status}Reports`);
+  querySnapshot.forEach((doc) => {
+    const data = doc.data();
+    const div = document.createElement("div");
+    div.innerHTML = `<p><strong>${data.username}</strong>: ${data.reportText}</p>`;
+    container.appendChild(div);
+  });
+}
+
+if (document.getElementById("solvedReports")) loadReports("solved");
+if (document.getElementById("unsolvedReports")) loadReports("unsolved");
