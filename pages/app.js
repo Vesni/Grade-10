@@ -116,3 +116,33 @@ async function loadReports(status) {
 
 if (document.getElementById("solvedReports")) loadReports("solved");
 if (document.getElementById("unsolvedReports")) loadReports("unsolved");
+const blogForm = document.getElementById("blogForm");
+if (blogForm) {
+  blogForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const content = document.getElementById("blogPost").value;
+    const user = auth.currentUser;
+    if (!user) { alert("Login first"); return; }
+    await addDoc(collection(db, "playerBlogs"), {
+      discordId: user.uid,
+      username: user.displayName,
+      content: content,
+      timestamp: Date.now()
+    });
+    blogForm.reset();
+  });
+}
+
+// Load posts:
+async function loadBlogPosts() {
+  const q = query(collection(db, "playerBlogs"), orderBy("timestamp", "desc"));
+  const snapshot = await getDocs(q);
+  const container = document.getElementById("blogPosts");
+  snapshot.forEach(doc => {
+    const data = doc.data();
+    const div = document.createElement("div");
+    div.innerHTML = `<p><strong>${data.username}</strong>: ${data.content}</p>`;
+    container.appendChild(div);
+  });
+}
+if (document.getElementById("blogPosts")) loadBlogPosts();
