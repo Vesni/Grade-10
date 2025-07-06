@@ -1,9 +1,15 @@
-// ✅ Import Firebase modules from CDN
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
-import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
-import { getAuth, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
+import {
+  getFirestore, collection, addDoc, query, where, getDocs, orderBy
+} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
+import {
+  getAuth, onAuthStateChanged, signInWithCustomToken
+} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
+import {
+  getStorage, ref, uploadBytes, getDownloadURL
+} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-storage.js";
 
-// ✅ Your Firebase config (replace if needed!)
+// === ✅ YOUR Firebase Config ===
 const firebaseConfig = {
   apiKey: "AIzaSyBXpKSAN_M9ilv7eLaHVseTTOF3dA9WETE",
   authDomain: "grade10-8e31f.firebaseapp.com",
@@ -13,70 +19,39 @@ const firebaseConfig = {
   appId: "1:131660391159:web:f9820d244b027e5a2029f2"
 };
 
-// ✅ Initialize Firebase
+// === ✅ Initialize Firebase ===
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
+const storage = getStorage(app);
 
-console.log("✅ Firebase initialized");
-
-// =============================
-// Example: Firestore write
-// =============================
-
-const exampleBtn = document.getElementById("exampleBtn");
-
-if (exampleBtn) {
-  exampleBtn.addEventListener("click", async () => {
-    try {
-      const docRef = await addDoc(collection(db, "testCollection"), {
-        name: "Grade10SMP",
-        timestamp: Date.now()
-      });
-      console.log("✅ Document written with ID: ", docRef.id);
-      alert("Document added: " + docRef.id);
-    } catch (e) {
-      console.error("❌ Error adding document: ", e);
-    }
-  });
-}
-
-// =============================
-// Example: Handle Discord login
-// =============================
-
-async function handleDiscordLogin() {
-  // 1. Get the code from URL
-  const urlParams = new URLSearchParams(window.location.search);
-  const code = urlParams.get('code');
-
-  if (code) {
-    console.log("✅ Discord code found:", code);
-
-    // 2. Call your Vercel serverless function to exchange code for custom Firebase token
-    const response = await fetch(`/api/discord-login?code=${code}`);
-    const data = await response.json();
-
-    if (data.customToken) {
-      console.log("✅ Got custom Firebase token:", data.customToken);
-
-      // 3. Sign in with Firebase
-      signInWithCustomToken(auth, data.customToken)
-        .then(() => {
-          console.log("✅ Signed in with Firebase using Discord login!");
-        })
-        .catch((error) => {
-          console.error("❌ Error signing in:", error);
+// === ✅ Auth State ===
+onAuthStateChanged(auth, user => {
+  if (user) {
+    console.log("✅ Signed in:", user.displayName || user.uid);
+  } else {
+    console.log("❌ Not signed in");
+    // Try Discord login if code exists
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    if (code) {
+      // Call your Vercel function
+      fetch(`/api/discord-login?code=${code}`)
+        .then(res => res.json())
+        .then(async data => {
+          if (data.customToken) {
+            await signInWithCustomToken(auth, data.customToken);
+            console.log("✅ Discord linked!");
+            window.history.replaceState({}, document.title, "/");
+          } else {
+            console.error(data);
+          }
         });
-    } else {
-      console.error("❌ No custom token received:", data);
     }
   }
-}
+});
 
-// Call this when page loads
-handleDiscordLogin();
-
+// === ✅ Player Reports ===
 const reportForm = document.getElementById("reportForm");
 if (reportForm) {
   reportForm.addEventListener("submit", async (e) => {
@@ -91,7 +66,7 @@ if (reportForm) {
 
     await addDoc(collection(db, "playerReports"), {
       discordId: user.uid,
-      username: user.displayName,
+      username: user.displayName || "Anonymous",
       reportText: text,
       status: "unsolved",
       timestamp: Date.now()
@@ -101,12 +76,16 @@ if (reportForm) {
     reportForm.reset();
   });
 }
+
+// === ✅ Load Solved & Unsolved Reports ===
 async function loadReports(status) {
   const q = query(collection(db, "playerReports"), where("status", "==", status));
-  const querySnapshot = await getDocs(q);
+  const snapshot = await getDocs(q);
 
   let container = document.getElementById(`${status}Reports`);
-  querySnapshot.forEach((doc) => {
+  if (!container) return;
+
+  snapshot.forEach((doc) => {
     const data = doc.data();
     const div = document.createElement("div");
     div.innerHTML = `<p><strong>${data.username}</strong>: ${data.reportText}</p>`;
@@ -116,6 +95,8 @@ async function loadReports(status) {
 
 if (document.getElementById("solvedReports")) loadReports("solved");
 if (document.getElementById("unsolvedReports")) loadReports("unsolved");
+
+// === ✅ Player Blog ===
 const blogForm = document.getElementById("blogForm");
 if (blogForm) {
   blogForm.addEventListener("submit", async (e) => {
@@ -125,7 +106,7 @@ if (blogForm) {
     if (!user) { alert("Login first"); return; }
     await addDoc(collection(db, "playerBlogs"), {
       discordId: user.uid,
-      username: user.displayName,
+      username: user.displayName || "Anonymous",
       content: content,
       timestamp: Date.now()
     });
@@ -133,11 +114,12 @@ if (blogForm) {
   });
 }
 
-// Load posts:
 async function loadBlogPosts() {
   const q = query(collection(db, "playerBlogs"), orderBy("timestamp", "desc"));
   const snapshot = await getDocs(q);
   const container = document.getElementById("blogPosts");
+  if (!container) return;
+
   snapshot.forEach(doc => {
     const data = doc.data();
     const div = document.createElement("div");
@@ -146,9 +128,8 @@ async function loadBlogPosts() {
   });
 }
 if (document.getElementById("blogPosts")) loadBlogPosts();
-import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-storage.js";
-const storage = getStorage(app);
 
+// === ✅ Gallery Upload ===
 const uploadBtn = document.getElementById("uploadBtn");
 if (uploadBtn) {
   uploadBtn.addEventListener("click", async () => {
@@ -160,6 +141,23 @@ if (uploadBtn) {
       imageUrl: url,
       timestamp: Date.now()
     });
-    alert("Uploaded!");
+    alert("✅ Uploaded!");
   });
 }
+
+// === ✅ Load Gallery ===
+async function loadGallery() {
+  const snapshot = await getDocs(query(collection(db, "galleryImages"), orderBy("timestamp", "desc")));
+  const container = document.getElementById("galleryGrid");
+  if (!container) return;
+
+  snapshot.forEach(doc => {
+    const data = doc.data();
+    const img = document.createElement("img");
+    img.src = data.imageUrl;
+    img.style.width = "300px";
+    img.style.margin = "1em";
+    container.appendChild(img);
+  });
+}
+if (document.getElementById("galleryGrid")) loadGallery();
