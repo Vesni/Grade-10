@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Player Reports - Grade 10 SMP</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <nav>
+    <h1>Grade 10 SMP</h1>
+    <ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="rules.html">Rules</a></li>
+      <li><a href="reports.html">Reports</a></li>
+      <li><a href="playerBlog.html">Blog</a></li>
+      <li><a href="gallery.html">Gallery</a></li>
+      <li><a href="about.html">About</a></li>
+    </ul>
+  </nav>
+
+  <main class="content">
+    <h2>Submit a Report</h2>
+    <form id="reportForm">
+      <label for="reportText">Describe the issue:</label><br/>
+      <textarea id="reportText" rows="5" required></textarea><br/>
+      <button type="submit">Submit Report</button>
+    </form>
+    <p id="reportStatus"></p>
+  </main>
+
+  <footer>
+    <p>&copy; 2025 Grade 10 SMP</p>
+  </footer>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
