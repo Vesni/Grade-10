@@ -76,3 +76,28 @@ async function handleDiscordLogin() {
 
 // Call this when page loads
 handleDiscordLogin();
+
+const reportForm = document.getElementById("reportForm");
+if (reportForm) {
+  reportForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const text = document.getElementById("reportText").value;
+    const user = auth.currentUser;
+
+    if (!user) {
+      alert("Please sign in with Discord first.");
+      return;
+    }
+
+    await addDoc(collection(db, "playerReports"), {
+      discordId: user.uid,
+      username: user.displayName,
+      reportText: text,
+      status: "unsolved",
+      timestamp: Date.now()
+    });
+
+    document.getElementById("reportStatus").innerText = "✅ Report submitted!";
+    reportForm.reset();
+  });
+}
