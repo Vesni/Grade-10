@@ -161,3 +161,12 @@ async function loadGallery() {
   });
 }
 if (document.getElementById("galleryGrid")) loadGallery();
+const loginBtn = document.getElementById("discordLogin");
+if (loginBtn) {
+  loginBtn.addEventListener("click", () => {
+    const clientId = "1391410094117359720";
+    const redirectUri = encodeURIComponent(window.location.origin);
+    const scope = "identify";
+    window.location.href = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`;
+  });
+}
